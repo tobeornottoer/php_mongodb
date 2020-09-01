@@ -29,3 +29,4 @@ $result = $db->collection("message")->aggregate([
    ['$group' => ["_id"=>'$time', "total" => ['$sum' => 1]]]
 ]);
 ~~~
+发现有错误的地方，欢迎指正一下~~ ，万分感谢。
