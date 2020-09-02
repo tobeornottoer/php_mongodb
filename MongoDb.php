@@ -111,9 +111,43 @@ class MongoDb
         return $this->query();
     }
 
-    public function query(){
+    public function count(){
+        $filter = $this->getWhere();
+        $aggregate = [
+            "aggregate"=>str_replace($this->conf["db"].".","",$this->collection),
+            "pipeline" => [
+                ['$match'=>$filter],
+                ['$count'=>"count"],
+            ],
+            "cursor" => (object)array()
+        ];
+        $command = new \MongoDB\Driver\Command($aggregate);
+        $result = $this->command($this->conf["db"],$command);
+        return $result ? $result->toArray()[0]->count : false;
+    }
+
+    public function sum(string $field){
+        $filter = $this->getWhere();
+        $aggregate = [
+            "aggregate"=>str_replace($this->conf["db"].".","",$this->collection),
+            "pipeline" => [
+                ['$match' => $filter],
+                [
+                    '$group' => [
+                        '_id' => '',
+                        'total' => ['$sum' => '$' . $field],
+                    ]
+                ],
+            ],
+            "cursor" => (object)array()
+        ];
+        $command = new \MongoDB\Driver\Command($aggregate);
+        $result = $this->command($this->conf["db"],$command);
+        return $result ? $result->toArray()[0]->total : false;
+    }
+
+    public function getWhere(){
         $filter = [];
-        $queryOptions = [];
         if(!empty($this->_and)){
             $filter = array_merge($filter,$this->_and);
         }
@@ -122,6 +156,11 @@ class MongoDb
                 $filter['$or'][][$key] = $val;
             }
         }
+        return $filter;
+    }
+
+    public function getQuery(){
+        $filter = $this->getWhere();
         if(!empty($this->_field)){
             $queryOptions["projection"] = $this->_field;
         }
@@ -135,6 +174,11 @@ class MongoDb
             $queryOptions["skip"] = $this->skip;
         }
         $query = new MongoDB\Driver\Query($filter,$queryOptions);
+        return $query;
+    }
+
+    public function query(){
+        $query = $this->getQuery();
         try {
             $result = $this->handle->executeQuery($this->collection,$query);
         }catch (\Exception $exception){
@@ -273,7 +317,9 @@ class MongoDb
 //    "password" => ""
 //]);
 //查询
-//$result = $db->collection("message")->Where(["time"=>['$lte'=>1598864449]])->sort("time",1)->field("from,type,time",false)->find();
+//$result = $db->collection("message")->Where(["time"=>['$lte'=>1598864449]])->sort("time",-1)->find();
+//$result = $db->collection("message")->Where(["time"=>['$lte'=>1598864449]])->count();
+//$result = $db->collection("message")->Where(["time"=>['$lte'=>1598864449]])->sum("time");
 //写入
 //$result = $db->collection("message")->insert([
 //    "from" => "a",
